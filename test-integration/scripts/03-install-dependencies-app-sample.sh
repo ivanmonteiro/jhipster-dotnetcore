@@ -12,7 +12,7 @@ source $(dirname $0)/01-init-env.sh
 # Install app dependencies and build 
 #-------------------------------------------------------------------------------
 if "$SONAR_ANALYSE" ; then
-  dotnet tool install --global dotnet-sonarscanner
+  dotnet tool install --global dotnet-sonarscanner --version 4.7.1
   dotnet tool install --global coverlet.console
   dotnet sonarscanner begin /k:"jhipster_jhipster-sample-app-dotnetcore" /o:"jhipster" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.login=$SONAR_TOKEN /s:"`pwd`/SonarQube.Analysis.xml"
 fi
