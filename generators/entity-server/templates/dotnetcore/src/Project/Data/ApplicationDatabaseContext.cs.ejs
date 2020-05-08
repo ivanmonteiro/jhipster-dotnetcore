@@ -16,6 +16,11 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 -%>
+using <%= namespace %>.Models;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
+
 namespace <%= namespace %>.Data {
 	<%_ if (authenticationType === 'jwt') { _%>
 	public class ApplicationDatabaseContext : IdentityDbContext<
