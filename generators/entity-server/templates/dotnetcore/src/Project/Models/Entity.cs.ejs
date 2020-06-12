@@ -30,10 +30,26 @@ using <%= namespace %>.Models.RelationshipTools;
 <%_ } if (importJsonIgnore === true || hasManyToMany) { _%>
 using Newtonsoft.Json;
 <%_ } _%>
+<%_
+let hasUserRelationship = false;
+let idx = 0;
+while (idx < relationships.length) {
+    relationship = relationships[idx];
+
+    if (relationship.otherEntityName === 'user') {
+        hasUserRelationship = true;
+    }
+    idx++;
+}
+_%>
 
 namespace <%= namespace %>.Models {
     [Table("<%= entityTableName %>")]
+    <%_ if (hasUserRelationship) { _%>
+    public class <%= entityClassName %> : BaseEntityTenant {
+    <%_ } else { _%>
     public class <%= entityClassName %> {
+    <%_ } _%>
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public long Id { get; set; }
@@ -56,11 +72,13 @@ namespace <%= namespace %>.Models {
 
         <%_ }
         for (idx in relationships) {
+
             const relationshipType = relationships[idx].relationshipType;
             const relationshipRequired = relationships[idx].relationshipRequired;
             const otherEntityNamePascalized = relationships[idx].otherEntityNamePascalized;
             const relationshipFieldNamePascalizedPlural = relationships[idx].relationshipFieldNamePascalizedPlural;
             const relationshipFieldNamePascalized = relationships[idx].relationshipFieldNamePascalized;
+            if (relationships[idx].otherEntityName !== 'user') {
             if (relationshipType === 'one-to-one'){_%>
         public <%= otherEntityNamePascalized %> <%= relationshipFieldNamePascalized %> { get; set; }
             <%_}
@@ -84,7 +102,7 @@ namespace <%= namespace %>.Models {
                 <%_ } _%>
         public IList<<%= otherEntityNamePascalized %>> <%= relationshipFieldNamePascalizedPlural %> { get; }
             <%_ } _%>
-
+          <%_ } _%>
         <%_ } _%>
         // jhipster-needle-entity-add-field - JHipster will add fields here, do not remove
 

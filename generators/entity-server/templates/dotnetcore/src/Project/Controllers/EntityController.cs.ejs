@@ -16,6 +16,18 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 -%>
+<%_
+let hasUserRelationship = false;
+let idx = 0;
+while (idx < relationships.length) {
+    relationship = relationships[idx];
+
+    if (relationship.otherEntityName === 'user') {
+        hasUserRelationship = true;
+    }
+    idx++;
+}
+_%>
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using JHipsterNet.Pagination;
@@ -31,6 +43,10 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+<%_ if (hasUserRelationship) { _%>
+using <%= namespace %>.Controllers.QueryUtils;
+using <%= namespace %>.Service;
+<%_ } _%>
 
 namespace <%= namespace %>.Controllers {
     [Authorize]
@@ -43,11 +59,19 @@ namespace <%= namespace %>.Controllers {
 
         private readonly ILogger<<%= pascalizedEntityClass %>Controller> _log;
 
+        <%_ if (hasUserRelationship) { _%>
+        private readonly IUserIdService _userIdService;
+
+        <%_ } _%>
         public <%= pascalizedEntityClass %>Controller(ILogger<<%= pascalizedEntityClass %>Controller> log,
-            ApplicationDatabaseContext applicationDatabaseContext)
+            ApplicationDatabaseContext applicationDatabaseContext<%_ if (hasUserRelationship) { _%>,
+            IUserIdService userIdService<%_ } _%>)
         {
             _log = log;
             _applicationDatabaseContext = applicationDatabaseContext;
+            <%_ if (hasUserRelationship) { _%>
+            _userIdService = userIdService;
+            <%_ } _%>
         }
 
         [HttpPost("<%= kebabCasedEntityClassPlural %>")]
@@ -57,6 +81,11 @@ namespace <%= namespace %>.Controllers {
             _log.LogDebug($"REST request to save <%= pascalizedEntityClass %> : {<%= camelCasedEntityClass %>}");
             if (<%= camelCasedEntityClass %>.Id != 0)
                 throw new BadRequestAlertException("A new <%= camelCasedEntityClass %> cannot already have an ID", EntityName, "idexists");
+            <%_ if (hasUserRelationship) { _%>
+
+            await _userIdService.SetUserOwnership(<%= camelCasedEntityClass %>);
+            <%_ } _%>
+
             <%_ if (relationships.length != 0) { _%>
             _applicationDatabaseContext.AddGraph(<%= camelCasedEntityClass %>);
             <%_ } else { _%>
@@ -74,12 +103,24 @@ namespace <%= namespace %>.Controllers {
             _log.LogDebug($"REST request to update <%= pascalizedEntityClass %> : {<%= camelCasedEntityClass %>}");
             if (<%= camelCasedEntityClass %>.Id == 0) throw new BadRequestAlertException("Invalid Id", EntityName, "idnull");
             //TODO catch //DbUpdateConcurrencyException into problem
+
+            <%_ if (hasUserRelationship) { _%>
+            if(!<%= camelCasedEntityClass %>.CheckIfBelongsToCurrentUser(_userIdService)) {
+                return Unauthorized();
+            }
+
+            <%_ } _%>
             <%_ relationships.forEach( relationship => {
                 if (relationship.relationshipType === 'many-to-many' && relationship.ownerSide) { _%>
             _applicationDatabaseContext.<%= relationship.joinEntityFieldNamePascalizedPlural %>.RemoveNavigationProperty(<%= camelCasedEntityClass %>, <%= camelCasedEntityClass %>.Id);
                 <%_ }
             }); _%>
             _applicationDatabaseContext.Update(<%= camelCasedEntityClass %>);
+            <%_ if (hasUserRelationship) { _%>
+
+            await _userIdService.SetUserOwnership(<%= camelCasedEntityClass %>);
+            <%_ } _%>
+
             <%_ let first = true;
             let suffix = 0;
             relationships.forEach( relationship => {
@@ -105,6 +146,9 @@ namespace <%= namespace %>.Controllers {
         {
             _log.LogDebug("REST request to get a page of <%= pascalizedEntityClassPlural %>");
             var page = _applicationDatabaseContext.<%= pascalizedEntityClassPlural %>
+            <%_ if (hasUserRelationship) { _%>
+                .FilterByCurrentUserId(_userIdService)
+            <%_ } _%>
             <%_ relationships.forEach( relationship => {
                 if (relationship.relationshipType === 'many-to-one' || relationship.relationshipType === 'one-to-one') { _%>
                 .Include(<%= camelCasedEntityClass %> => <%= camelCasedEntityClass %>.<%= relationship.relationshipFieldNamePascalized %>)
@@ -119,6 +163,9 @@ namespace <%= namespace %>.Controllers {
         {
             _log.LogDebug($"REST request to get <%= pascalizedEntityClass %> : {id}");
             var result = await _applicationDatabaseContext.<%= pascalizedEntityClassPlural %>
+            <%_ if (hasUserRelationship) { _%>
+                .FilterByCurrentUserId(_userIdService)
+            <%_ } _%>
             <%_ relationships.forEach( relationship => {
                 if (relationship.relationshipType === 'many-to-one' || relationship.relationshipType === 'one-to-one') { _%>
                 .Include(<%= camelCasedEntityClass %> => <%= camelCasedEntityClass %>.<%= relationship.relationshipFieldNamePascalized %>)
@@ -135,7 +182,15 @@ namespace <%= namespace %>.Controllers {
         public async Task<IActionResult> Delete<%= pascalizedEntityClass %>([FromRoute] long id)
         {
             _log.LogDebug($"REST request to delete <%= pascalizedEntityClass %> : {id}");
-            _applicationDatabaseContext.<%= pascalizedEntityClassPlural %>.RemoveById(id);
+            var <%= camelCasedEntityClass %> = await _applicationDatabaseContext.<%= pascalizedEntityClassPlural %>
+            <%_ if (hasUserRelationship) { _%>
+                .FilterByCurrentUserId(_userIdService)
+            <%_ } _%>
+                .SingleOrDefaultAsync(<%= camelCasedEntityClass %> => <%= camelCasedEntityClass %>.Id == id);
+            if (<%= camelCasedEntityClass %> == null) {
+                return new NotFoundResult();
+            }
+            _applicationDatabaseContext.<%= pascalizedEntityClassPlural %>.Remove(<%= camelCasedEntityClass %>);
             await _applicationDatabaseContext.SaveChangesAsync();
             return Ok().WithHeaders(HeaderUtil.CreateEntityDeletionAlert(EntityName, id.ToString()));
         }
