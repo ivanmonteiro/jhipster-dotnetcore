@@ -16,7 +16,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 -%>
-<%_ let importJsonIgnore = false;
+<%_
 const hasManyToMany = entityClassHasManyToMany;
 const entityTableName = snakeCasedEntityClass;
 const entityClassName = pascalizedEntityClass;
@@ -34,16 +34,12 @@ fields.forEach(field => {
 if (hasEnumField) { _%>
 using <%= namespace %>.Crosscutting.Enums;
 <%_ } _%>
-<%_ if (importJsonIgnore === true || hasManyToMany) { _%>
-using Newtonsoft.Json;
-<%_ } _%>
 
 namespace <%= namespace %>.Dto {
 
     public class <%= asDto(entityClassName) %> {
 
         public long Id { get; set; }
-
         <%_ for (idx in fields){
             let required = false;
             const fieldValidate = fields[idx].fieldValidate;
@@ -54,8 +50,9 @@ namespace <%= namespace %>.Dto {
                 if (fieldValidateRules.includes('required')) {
                     required = true;
                 }
-            }
-            if (required) { _%>
+            } _%>
+        
+        <%_  if (required) { _%>
         [Required]
             <%_ } _%>
             <%_ if (fields[idx].fieldIsEnum) { _%>
@@ -63,14 +60,29 @@ namespace <%= namespace %>.Dto {
                 <%_ } else { _%>
         public <%= fieldType %> <%= fieldNamePascalized %> { get; set; }
             <%_ } _%>
-        <%_ }
-        for (idx in relationships) {
+        <%_ } _%>
+        <%_ for (idx in relationships) {
             const relationshipType = relationships[idx].relationshipType;
             const relationshipRequired = relationships[idx].relationshipRequired;
             const otherEntityNamePascalized = relationships[idx].otherEntityNamePascalized;
             const relationshipFieldNamePascalizedPlural = relationships[idx].relationshipFieldNamePascalizedPlural;
-            const relationshipFieldNamePascalized = relationships[idx].relationshipFieldNamePascalized;
-            if (relationshipType === 'one-to-one'){_%>
+            const relationshipFieldNamePascalized = relationships[idx].relationshipFieldNamePascalized; 
+            const otherEntityFieldCapitalized = relationships[idx].otherEntityFieldCapitalized;
+            const ownerSide = relationships[idx].ownerSide;
+
+            if ((relationshipType === 'many-to-many' && ownerSide === true)) {  _%>
+
+        public IList<<%= asDto(otherEntityNamePascalized) %>> <%= relationshipFieldNamePascalizedPlural %> { get; set; } = new List<<%= asDto(otherEntityNamePascalized) %>>();
+        <%_ } else if (!embedded && (relationshipType === 'many-to-one' || (relationshipType === 'one-to-one' && ownerSide === true))) { _%>
+        
+        public long? <%= relationshipFieldNamePascalized %>Id { get; set; }
+        <%_ if (otherEntityFieldCapitalized !== 'Id' && otherEntityFieldCapitalized !== '') { _%>
+        
+        public String <%= relationshipFieldNamePascalized %><%= otherEntityFieldCapitalized %>;
+        <%_ } } } _%>
+
+        <%_ if (false) { 
+        if (relationshipType === 'one-to-one'){ _%>
         public <%= asDto(otherEntityNamePascalized) %> <%= relationshipFieldNamePascalized %> { get; set; }
             <%_}
             if(relationshipType === 'one-to-many') { _%>
@@ -81,16 +93,15 @@ namespace <%= namespace %>.Dto {
                 <%_ } _%>
         public <%= asDto(otherEntityNamePascalized) %> <%= relationshipFieldNamePascalized %> { get; set; }
             <%_  } else if (relationshipType === 'many-to-many') {
-                const ownerSide = relationships[idx].ownerSide; _%>
+                 _%>
 
-                <%_ if (!ownerSide) { _%>
-        [JsonIgnore]
-                <%_ } _%>
+                <%_ if (ownerSide) { _%>
         public IList<<%= asDto(otherEntityNamePascalized) %>> <%= relationshipFieldNamePascalizedPlural %> { get; set; } = new List<<%= asDto(otherEntityNamePascalized) %>>();
             <%_ } _%>
-
-        <%_ } _%>
+        <%_ } 
+        }_%>
 
         // jhipster-needle-dto-add-field - JHipster will add fields here, do not remove
     }
+
 }
