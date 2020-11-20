@@ -101,66 +101,36 @@ namespace <%= namespace %>.Infrastructure.Data {
                 .OnDelete(DeleteBehavior.Cascade);
             <%_ } _%>
             
-            <%_ entities.forEach(entity => {
-                fields.forEach(field => {
-                    if (entity.name == entityClass && field.fieldIsEnum){ _%>
+            <%_ allEntities.forEach(entity => {
+                    entity.fields.forEach(field => {
+                        if (field.fieldIsEnum) { _%>
             builder.Entity<<%= entity.name %>>()
                 .Property(e => e.<%= field.fieldNamePascalized %>)
                 .HasConversion<string>();
-                <%_ }
-                });
-                if(entity.name.toUpperCase() !== entityClass.toUpperCase()) {
-                    entity.definition.relationships.forEach(relationship => {
-                        if (relationship.relationshipType === 'many-to-many') {
-                            // executed when importing entities by jdl (jhipster import-jdl fileName.jdl)
-                            if (relationship.ownerSide) {
-                                let relationshipNamePascalized = toPascalCase(relationship.relationshipName);
-                                let relationshipNamePascalizedPlural = pluralize(relationshipNamePascalized); 
-                                let relationshipFieldNamePascalizedPlural = relationship.relationshipFieldNamePascalizedPlural;
-                                let otherEntityRelationshipNamePascalized = toPascalCase(relationship.otherEntityRelationshipName);
-                                let otherEntityRelationshipNamePascalizedPlural = pluralize(otherEntityRelationshipNamePascalized);
-                                let joinEntityClassNamePascalized = otherEntityRelationshipNamePascalized + relationshipNamePascalized;
-                                let joinEntityClassNamePascalizedPlural = pluralize(joinEntityClassNamePascalized);
-                                let entityClassNamePascalized = entity.name;
-                                let entityClassNamePascalizedPlural = pluralize(entity.name);
-                                let otherEntityClassNamePascalized = toPascalCase(relationship.otherEntityName);
-                                let otherEntityClassNamePascalizedPlural = pluralize(otherEntityClassNamePascalized);
-                                let ownerRelationshipFieldName = entityClassNamePascalized;
-                                let nonOwnerRelationshipFieldName = otherEntityClassNamePascalized; _%>
-            builder.Entity<<%= ownerRelationshipFieldName %>>()
-                .HasMany(x => x.<%= relationshipNamePascalizedPlural %>)
-                .WithMany(x => x.<%= otherEntityRelationshipNamePascalizedPlural %>)
-                .UsingEntity<Dictionary<string, object>>(
-                    "<%= joinEntityClassNamePascalizedPlural %>", 
-                    x => x.HasOne<<%= nonOwnerRelationshipFieldName %>>().WithMany(),
-                    x => x.HasOne<<%= ownerRelationshipFieldName %>>().WithMany());            
 
-                            <%_ }
-                        }
+                <%_     }
                     });
-                }
             });
-            relationships.forEach(relationship => {
-                if (relationship.relationshipType === 'many-to-many') {
-                    // executed when using the entity generator to add relationships (jhipster entity entityName)
-                    if (relationship.ownerSide) {
-                        let ownerRelationshipFieldName = pascalizedEntityClass;
-                        let nonOwnerRelationshipFieldName = relationship.otherEntityNamePascalized; 
-                        let relationshipNamePascalizedPlural = relationship.relationshipNamePascalizedPlural;
-                        let otherEntityRelationshipNamePascalizedPlural = relationship.otherEntityRelationshipNamePascalizedPlural;
-                        let joinEntityClassNamePascalizedPlural = relationship.joinEntityFieldNamePascalizedPlural;
-                        _%>
-            builder.Entity<<%= ownerRelationshipFieldName %>>()
-                .HasMany(x => x.<%= relationshipNamePascalizedPlural %>)
-                .WithMany(x => x.<%= otherEntityRelationshipNamePascalizedPlural %>)
+            _%>
+            <%_ allEntities.forEach(entitiy => { 
+                    entitiy.relationships.forEach(relationship => { 
+                        if (relationship.relationshipType === 'many-to-many') {
+                            if (relationship.ownerSide) {
+            _%>
+            builder.Entity<<%= entitiy.name %>>()
+                .HasMany(x => x.<%= relationship.relationshipNamePascalizedPlural %>)
+                .WithMany(x => x.<%= relationship.otherEntityRelationshipNamePascalizedPlural %>)
                 .UsingEntity<Dictionary<string, object>>(
-                    "<%= joinEntityClassNamePascalizedPlural %>", 
-                    x => x.HasOne<<%= nonOwnerRelationshipFieldName %>>().WithMany(),
-                    x => x.HasOne<<%= ownerRelationshipFieldName %>>().WithMany());
+                    "<%= relationship.joinEntityFieldNamePascalizedPlural %>", 
+                    x => x.HasOne<<%= relationship.otherEntityNamePascalized %>>().WithMany(),
+                    x => x.HasOne<<%= entitiy.name %>>().WithMany());
 
-                    <%_ }
-                }
-            }) _%>
+            <%_ 
+                            }
+                        }
+                    })
+                }) 
+            _%>
         }
 
         /// <summary>
