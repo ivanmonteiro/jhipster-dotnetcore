@@ -68,6 +68,12 @@ function updateWebpackDevJs() {
         "cacheDirectory: path.resolve('bin/cache-loader')",
         true
     );
+    this.replaceContent(
+        `${SERVER_SRC_DIR}${this.mainClientDir}/webpack/webpack.dev.js`,
+        "target: `http${options.tls ? 's' : ''}://localhost:8080`",
+        `target: \`http\${options.tls ? 's' : ''}://localhost:${this.serverPort}\``,
+        false
+    );
 }
 
 function updateWebpackProdJs() {
@@ -89,15 +95,23 @@ function updateProxyConfJson() {
     this.replaceContent(
         `${SERVER_SRC_DIR}${this.mainClientDir}/proxy.conf.json`,
         '"target": "http://localhost:8080"',
-        '"target": "http://localhost:5000"',
+        `"target": "http://localhost:${this.serverPort}"`,
         false
     );
 }
 
 function updateTsConfigJson() {
+     this.replaceContent(`${SERVER_SRC_DIR}${this.mainClientDir}/tsconfig.json`, '"outDir": ".*"', '"outDir": "dist/src/app"', true);
     this.replaceContent(`${SERVER_SRC_DIR}${this.mainClientDir}/tsconfig.json`, `${SERVER_SRC_DIR}${this.mainClientDir}/`,"", true);
     this.replaceContent(`${SERVER_SRC_DIR}${this.mainClientDir}/tsconfig.app.json`, `${SERVER_SRC_DIR}${this.mainClientDir}/`,"", true);
-    this.replaceContent(`${SERVER_SRC_DIR}${this.mainClientDir}/tsconfig.json`, '"outDir": ".*"', '"outDir": "dist/src/app"', true);
+    this.replaceContent(`${SERVER_SRC_DIR}${this.mainClientDir}/tsconfig.base.json`, `${SERVER_SRC_DIR}${this.mainClientDir}/`,"", true);
+    this.replaceContent(`${SERVER_SRC_DIR}${this.mainClientDir}/tsconfig.base.json`, '"outDir": ".*"', '"outDir": "dist/src/app"', true);
+    this.replaceContent(
+        `${SERVER_SRC_DIR}${this.mainClientDir}/tsconfig.base.json`,
+        `/${SERVER_SRC_DIR}${this.mainClientDir}`,
+        "",
+        true
+    );
 }
 
 function updatePackageJson() {
@@ -168,10 +182,19 @@ function updateTestFramework(){
         this.replaceContent(
             `${SERVER_SRC_DIR}${this.mainClientDir}/test/protractor.conf.js`,
             'http://localhost:8080',
-            'http://localhost:5000',
+            `http://localhost:${this.serverPort}`,
             false
         );
     }
+}
+
+function updateVendor() {
+   this.replaceContent(
+        `${SERVER_SRC_DIR}${this.mainClientAppDir}/content/scss/vendor.scss`,
+        `${SERVER_SRC_DIR}${this.mainClientDir}/src/content`,
+        "..",
+        true
+    );
 }
 
 function writeFiles() {
@@ -180,10 +203,11 @@ function writeFiles() {
     updateWebpackProdJs.call(this);
     updateProxyConfJson.call(this);
     updateTsConfigJson.call(this);
-    updatePackageJson.call(this);    
+    updatePackageJson.call(this);
     updateJestConf.call(this);
     updateEsLinIgnore.call(this);
     updateTestFramework.call(this);
+    updateVendor.call(this); 
 }
 
 module.exports = {

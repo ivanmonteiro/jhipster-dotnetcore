@@ -34,6 +34,12 @@ const files = {
         {
             templates: [{ file: 'README.md' }],
         },
+        {
+            templates: [
+                { file: 'gitignore', renameTo: () => '.gitignore', method: 'copy' },
+                { file: 'editorconfig', renameTo: () => '.editorconfig', method: 'copy' },
+            ],
+        },
     ],
 };
 

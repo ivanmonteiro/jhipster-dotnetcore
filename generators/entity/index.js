@@ -8,6 +8,7 @@ const _ = require('lodash');
 const utilsNet = require('../utils');
 const constants = require('../generator-dotnetcore-constants');
 const prompts = require('./prompts');
+const asModel = require('../utils').asModel;
 
 module.exports = class extends EntityGenerator {
     constructor(args, opts) {
@@ -30,6 +31,7 @@ module.exports = class extends EntityGenerator {
             getConfigNetBlueprint() {
                 const configuration = this.getAllJhipsterConfig(this, true);
                 this.context.namespace = configuration.get('namespace') || this.configOptions.namespace;
+                this.context.dtoSuffix = 'Dto';
             },
         };
         return Object.assign(phaseFromJHipster, jhipsterNetPhaseSteps);
@@ -38,7 +40,7 @@ module.exports = class extends EntityGenerator {
     get prompting() {
         return {
             /* pre entity hook needs to be written here */
-            // askForMicroserviceJson: prompts.askForMicroserviceJson,
+            askForMicroserviceJson: prompts.askForMicroserviceJson,
             /* ask question to user if s/he wants to update entity */
             askForUpdate: prompts.askForUpdate,
             askForFields: prompts.askForFields,
@@ -46,8 +48,8 @@ module.exports = class extends EntityGenerator {
             askForRelationships: prompts.askForRelationships,
             askForRelationsToRemove: prompts.askForRelationsToRemove,
             askForTableName: prompts.askForTableName,
-            // askForService: prompts.askForService,
-            // askForDTO: prompts.askForDTO,
+            askForService: prompts.askForService,
+            askForDTO: prompts.askForDTO,
             // askForFiltering: prompts.askForFiltering,
             askForPagination: prompts.askForPagination,
         };
@@ -66,8 +68,11 @@ module.exports = class extends EntityGenerator {
                 context.snakeCasedEntityClass = _.snakeCase(context.entityClass);
                 context.snakeCasedEntityClassPlural = _.snakeCase(context.entityClassPlural);
                 context.camelCasedEntityClass = _.camelCase(context.entityClass);
+                context.camelCasedEntityClassPlural = _.camelCase(context.entityClassPlural);
                 context.kebabCasedEntityClass = _.kebabCase(context.entityClass);
                 context.kebabCasedEntityClassPlural = _.kebabCase(context.entityClassPlural);
+                context.lowerCasedEntityClass = _.toLower(context.entityClass);
+                context.lowerCasedEntityClassPlural = _.toLower(context.entityClassPlural);
                 context.entityClassHasManyToMany = false;
                 context.entities = this.getExistingEntities();
                 context.mainClientAppDir = `${context.mainProjectDir}/ClientApp/src`;
@@ -78,21 +83,48 @@ module.exports = class extends EntityGenerator {
                 context.pluralize = pluralize;
                 context._ = _;
                 context.equivalentCSharpType = utilsNet.equivalentCSharpType;
+                context.asModel = asModel;
 
                 // Load in-memory data for .Net Blueprint fields
                 context.fields.forEach(field => {
                     field.fieldNamePascalized = toPascalCase(field.fieldName);
                     field.fieldNameCamelCased = _.camelCase(field.fieldName);
+
+                    const fieldType = field.fieldType;
+
+                    field.fieldIsEnum = ![
+                        'String',
+                        'Integer',
+                        'Long',
+                        'Float',
+                        'Double',
+                        'BigDecimal',
+                        'LocalDate',
+                        'Instant',
+                        'ZonedDateTime',
+                        'Duration',
+                        'UUID',
+                        'Boolean',
+                        'byte[]',
+                        'ByteBuffer',
+                    ].includes(fieldType);
+
+                    if (field.fieldIsEnum === true) {
+                        context.i18nToLoad.push(field.enumInstance);
+                    }
                 });
 
                 // Load in-memory data for .Net Blueprint relationships
                 context.relationships.forEach(relationship => {
                     relationship.relationshipNamePascalized = toPascalCase(relationship.relationshipName);
+                    relationship.relationshipNamePascalizedPlural = pluralize(relationship.relationshipNamePascalized);
                     relationship.relationshipFieldNamePascalized = toPascalCase(relationship.relationshipFieldName);
                     relationship.relationshipFieldNamePascalizedPlural = pluralize(relationship.relationshipFieldNamePascalized);
                     relationship.otherEntityNamePascalized = toPascalCase(relationship.otherEntityName);
                     relationship.otherEntityNamePascalizedPlural = toPascalCase(relationship.otherEntityNamePlural);
                     relationship.otherEntityNameCamelCased = _.camelCase(relationship.otherEntityName);
+                    relationship.otherEntityNameLowerCased = _.toLower(relationship.otherEntityName);
+                    relationship.otherEntityNameLowerCasedPlural = _.toLower(relationship.otherEntityNamePlural);
 
                     if (
                         relationship.relationshipType === 'one-to-many' ||
@@ -112,6 +144,9 @@ module.exports = class extends EntityGenerator {
 
                     if (relationship.relationshipType === 'many-to-many') {
                         if (relationship.ownerSide) {
+                            relationship.otherEntityRelationshipNamePascalizedPlural = pluralize(
+                                relationship.otherEntityRelationshipNamePascalized
+                            );
                             relationship.joinEntityName =
                                 relationship.otherEntityRelationshipName + _.upperFirst(relationship.relationshipName);
                             relationship.joinEntityNamePascalized =
@@ -136,7 +171,6 @@ module.exports = class extends EntityGenerator {
     }
 
     get writing() {
-        // Here we are not overriding this phase and hence its being handled by JHipster
         return super._writing();
     }
 

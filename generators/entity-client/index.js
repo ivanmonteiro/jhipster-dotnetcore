@@ -3,6 +3,9 @@ const chalk = require('chalk');
 const EntityClientGenerator = require('generator-jhipster/generators/entity-client');
 const constants = require('../generator-dotnetcore-constants');
 const configureGlobalDotnetcore = require('../utils').configureGlobalDotnetcore;
+const writeBlazorFiles = require('./files-blazor').writeFiles;
+
+const BLAZOR = constants.BLAZOR;
 
 module.exports = class extends EntityClientGenerator {
     constructor(args, opts) {
@@ -22,12 +25,23 @@ module.exports = class extends EntityClientGenerator {
 
         const customPhaseSteps = {
             configureGlobalDotnetcore,
+            dtoWorkaround() {
+                this.dto = 'no';
+            },
         };
 
         return Object.assign(customPhaseSteps, phaseFromJHipster);
     }
 
     get writing() {
+        if (this.clientFramework === BLAZOR) {
+            return {
+                writeFilesDotnetcore() {
+                    if (this.skipClient) return;
+                    return writeBlazorFiles.call(this);
+                },
+            };
+        }
         return super._writing();
     }
 

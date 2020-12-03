@@ -16,12 +16,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+const baseConstants = require('generator-jhipster/generators/generator-constants');
 const constants = require('../generator-dotnetcore-constants');
+const utils = require('../utils');
 
 /* Constants use throughout */
+
+const INTERPOLATE_REGEX = baseConstants.INTERPOLATE_REGEX;
 const SERVER_SRC_DIR = constants.SERVER_SRC_DIR;
 const SERVER_TEST_DIR = constants.SERVER_TEST_DIR;
+const PROJECT_CROSSCUTTING_SUFFIX = constants.PROJECT_CROSSCUTTING_SUFFIX;
+const PROJECT_SERVICE_SUFFIX = constants.PROJECT_SERVICE_SUFFIX;
+const PROJECT_INFRASTRUCTURE_SUFFIX = constants.PROJECT_INFRASTRUCTURE_SUFFIX;
 
 const serverFiles = {
     server: [
@@ -29,27 +35,60 @@ const serverFiles = {
             path: SERVER_SRC_DIR,
             templates: [
                 {
-                    file: 'Project/Models/Entity.cs',
-                    renameTo: generator => `${generator.mainProjectDir}/Models/${generator.asEntity(generator.entityClass)}.cs`,
+                    file: 'Project.Domain/Entities/Entity.cs',
+                    renameTo: generator =>
+                        `${generator.pascalizedBaseName}${constants.PROJECT_DOMAIN_SUFFIX}/Entities/${generator.asEntity(
+                            generator.entityClass
+                        )}.cs`,
                 },
                 {
                     file: 'Project/Controllers/EntityController.cs',
                     renameTo: generator =>
                         `${generator.mainProjectDir}/Controllers/${generator.asEntity(generator.entityClass)}Controller.cs`,
                 },
+                {
+                    file: 'Project.Domain/Repositories/Interfaces/IEntityRepository.cs',
+                    renameTo: generator =>
+                        `${generator.pascalizedBaseName}${constants.PROJECT_DOMAIN_SUFFIX}/Repositories/Interfaces/I${generator.asEntity(
+                            generator.entityClass
+                        )}Repository.cs`,
+                },
+                {
+                    file: 'Project.Infrastructure/Data/Repositories/EntityRepository.cs',
+                    renameTo: generator =>
+                        `${generator.pascalizedBaseName}${PROJECT_INFRASTRUCTURE_SUFFIX}/Data/Repositories/${generator.asEntity(
+                            generator.entityClass
+                        )}Repository.cs`,
+                },
             ],
         },
         {
-            condition: generator => generator.entityClassHasManyToMany,
             path: SERVER_SRC_DIR,
             templates: [
                 {
-                    file: 'Project/Models/Interfaces/IJoinedEntity.cs',
-                    renameTo: generator => `${generator.mainProjectDir}/Models/Interfaces/IJoinedEntity.cs`,
+                    file: 'Project/Configuration/AutoMapper/AutoMapperProfile.cs',
+                    renameTo: generator => `${generator.mainProjectDir}/Configuration/AutoMapper/AutoMapperProfile.cs`,
                 },
+            ],
+        },
+        {
+            condition: generator => generator.dto === 'mapstruct',
+            path: SERVER_SRC_DIR,
+            templates: [
                 {
-                    file: 'Project/Models/RelationshipTools/JoinListFacade.cs',
-                    renameTo: generator => `${generator.mainProjectDir}/Models/RelationshipTools/JoinListFacade.cs`,
+                    file: 'Project.Dto/Dto.cs',
+                    renameTo: generator =>
+                        `${generator.pascalizedBaseName}${constants.PROJECT_DTO_SUFFIX}/${generator.asDto(generator.entityClass)}.cs`,
+                },
+            ],
+        },
+        {
+            condition: generator => generator.dto === 'mapstruct',
+            path: SERVER_SRC_DIR,
+            templates: [
+                {
+                    file: 'Project.Dto/AuditedEntityBaseDto.cs',
+                    renameTo: generator => `${generator.pascalizedBaseName}${constants.PROJECT_DTO_SUFFIX}/AuditedEntityBaseDto.cs`,
                 },
             ],
         },
@@ -59,20 +98,9 @@ const serverFiles = {
             path: SERVER_SRC_DIR,
             templates: [
                 {
-                    file: 'Project/Data/ApplicationDatabaseContext.cs',
-                    renameTo: generator => `${generator.mainProjectDir}/Data/ApplicationDatabaseContext.cs`,
-                },
-                {
-                    file: 'Project/Data/Extensions/DbContextExtensions.cs',
-                    renameTo: generator => `${generator.mainProjectDir}/Data/Extensions/DbContextExtensions.cs`,
-                },
-                {
-                    file: 'Project/Data/Extensions/DbSetExtensions.cs',
-                    renameTo: generator => `${generator.mainProjectDir}/Data/Extensions/DbSetExtensions.cs`,
-                },
-                {
-                    file: 'Project/Data/Extensions/PropertyAccessorCache.cs',
-                    renameTo: generator => `${generator.mainProjectDir}/Data/Extensions/PropertyAccessorCache.cs`,
+                    file: 'Project.Infrastructure/Data/ApplicationDatabaseContext.cs',
+                    renameTo: generator =>
+                        `${generator.pascalizedBaseName}${PROJECT_INFRASTRUCTURE_SUFFIX}/Data/ApplicationDatabaseContext.cs`,
                 },
             ],
         },
@@ -89,34 +117,65 @@ const serverFiles = {
             ],
         },
     ],
+    service: [
+        {
+            condition: generator => generator.service === 'serviceImpl',
+            path: SERVER_SRC_DIR,
+            templates: [
+                {
+                    file: 'Project.Domain.Services/Service.cs',
+                    renameTo: generator => `${generator.pascalizedBaseName}${PROJECT_SERVICE_SUFFIX}/${generator.entityClass}Service.cs`,
+                },
+                {
+                    file: 'Project.Domain/Services/Interfaces/IService.cs',
+                    renameTo: generator =>
+                        `${generator.pascalizedBaseName}${constants.PROJECT_DOMAIN_SUFFIX}/Services/Interfaces/I${generator.entityClass}Service.cs`,
+                },
+            ],
+        },
+    ],
+};
+
+const gatlingTestsFiles = {
+    gatlingTests: [
+        {
+            condition: generator => generator.gatlingTests,
+            path: SERVER_TEST_DIR,
+            templates: [
+                {
+                    file: 'gatling/user-files/simulations/EntityGatlingTest.scala',
+                    options: { interpolate: INTERPOLATE_REGEX },
+                    renameTo: generator => `gatling/user-files/simulations/${generator.entityClass}GatlingTest.scala`,
+                },
+            ],
+        },
+    ],
 };
 
 function writeFiles() {
     return {
         writeServerFiles() {
-            this.relationships.forEach(relationship => {
-                // const relationship = relationship;
-                if (relationship.relationshipType === 'many-to-many') {
-                    const files = {
-                        server: [
-                            {
-                                condition: generator => generator.entityClassHasManyToMany,
-                                path: SERVER_SRC_DIR,
-                                templates: [
-                                    {
-                                        file: 'Project/Models/JoinEntity.cs',
-                                        renameTo: generator =>
-                                            `${generator.mainProjectDir}/Models/${relationship.joinEntityNamePascalized}.cs`,
-                                    },
-                                ],
-                            },
-                        ],
-                    };
-                    this.currentRelation = relationship.joinEntityNamePascalized;
-                    this.writeFilesToDisk(files, this, false, 'dotnetcore');
+            this.fields.forEach(field => {
+                if (field.fieldIsEnum) {
+                    if (!this.skipServer) {
+                        const enumInfo = utils.getEnumInfo(field, this.clientRootFolder);
+                        enumInfo.namespace = this.namespace;
+                        const fieldType = field.fieldType;
+                        this.template(
+                            'dotnetcore/src/Project.Crosscutting/Enums/Enum.cs.ejs',
+                            `src/${this.pascalizedBaseName}${PROJECT_CROSSCUTTING_SUFFIX}/Enums/${fieldType}.cs`,
+                            this,
+                            {},
+                            enumInfo
+                        );
+                    }
                 }
             });
+
             this.writeFilesToDisk(serverFiles, this, false, 'dotnetcore');
+        },
+        writeFilesGatling() {
+            this.writeFilesToDisk(gatlingTestsFiles, this, false, this.fetchFromInstalledJHipster('entity-server/templates/src'));
         },
     };
 }
